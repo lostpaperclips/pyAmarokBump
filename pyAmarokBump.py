@@ -7,14 +7,15 @@ import urllib
 import unittest
 
 ITUNES_MUSIC_HOME_PREFIXES = ["file://localhost/Z:/Music", "file://localhost/C:/Users/Christopher Crammond/Music/iTunes/iTunes Music"]
-AMAROK_MUSIC_HOME = "/home/pub/audio"
+#AMAROK_MUSIC_HOME = ["/home/pub/audio", "/home/pub/sound"]
+AMAROK_MUSIC_HOME = ["/home"]
 
-VERSION  = "0.0.2"
+VERSION  = "0.0.3"
 DEBUG_FLAG = "false"
 ITUNES_FLAG = "false"
 PRETEND_FLAG = "false"
 UNITTEST_FLAG = "false"
-SCRIPT_NAME = "pyAmBump-" + VERSION + ".py"
+SCRIPT_NAME = "pyAmarokBump-" + VERSION + ".py"
 
 #######################################################################
 #
@@ -177,11 +178,17 @@ class iTunesLibraryContentXmlParser(xml.sax.handler.ContentHandler):
       filename = filename.replace(stripper, "")
 
     filename = filename.replace('\\', '/')
-    filename = AMAROK_MUSIC_HOME + filename
-    #debug("tranformed pathname: " + filename)
-    if os.path.isfile(filename):
-      #warning("Unable to locate file: \r\n" + filename)
-      print(filename + "|"+str(self.itunesPlayCount))
+    
+    for prefix in AMAROK_MUSIC_HOME:
+      amarokFilename = AMAROK_MUSIC_HOME + filename
+      #debug("tranformed pathname: " + amarokFilename)
+      if os.path.isfile(amarokFilename):
+        #warning("Unable to locate file: \r\n" + amarokFilename)
+        print(amarokFilename + "|"+str(self.itunesPlayCount))
+        return
+      
+    warning("Unable to locate file: \r\n" + filename)
+    return
 
   #######################################################################
   #
@@ -346,53 +353,6 @@ class iTunesLibraryContentXmlParser(xml.sax.handler.ContentHandler):
 class BumpAmarokStatistics:
   #######################################################################
   #
-  # Update the statistics_permanent
-  #
-  # For the given (Amarok) database connection, increase the playcount by
-  # the given bump number
-  #
-  def bumpAudioPlaycount_statistics_permenent(self, dbConnection, fullFilePath, bump):
-    debug("\n\ra) find id from the url/path")
-    fullFilePathAsUrl = string.replace(fullFilePath, " ", "%20")
-      
-    cursor = dbConnection.cursor()
-    try:
-      findUrlIdStatement = """
-      SELECT statistics_permanent.playcount FROM statistics_permanent WHERE 
-      statistics_permanent.url = "file://""" + fullFilePathAsUrl + """";"""
-      self.executeSelectStatement(cursor, findUrlIdStatement)
-      createAndAccessDate = time.strftime("%Y-%m-%d %H:%M:%S")
-      
-      if cursor.rowcount == 0:
-        debug("\n\rc - i) create playcount record")   
-        debug("Inserted play count will be " + str(int(bump)))
-        insertPlaycountStatement = """INSERT INTO statistics_permanent (url,firstplayed,lastplayed,score,playcount) VALUES("file://""" + \
-                fullFilePathAsUrl + """", \"""" + createAndAccessDate + """\", \"""" + createAndAccessDate + \
-                """\", 0, """ + str(bump)  + """);""" 
-        findPlayCountResult = self.executeInsertStatement(cursor, insertPlaycountStatement)
-      else: #if cursor.rowcount >= 1:
-        debug("\n\rc - ii) update/add current playcount")   
-        findUrlIdResult =  cursor.fetchall()
-        dbPlaycount = str(findUrlIdResult[0][0])   
-        debug("Current playcount is " + dbPlaycount)
-        debug("Updated play count will be " + str(int(dbPlaycount) + int(bump)))
-        updatePlaycountStatement = """UPDATE statistics_permanent SET statistics_permanent.playcount = statistics_permanent.playcount + """ \
-                + str(bump) 
-        updatePlaycountStatement = updatePlaycountStatement + """, statistics_permanent.lastplayed = \"""" \
-                + createAndAccessDate + "\""
-        updatePlaycountStatement = updatePlaycountStatement + """ WHERE statistics_permanent.url = "file://""" \
-                + fullFilePathAsUrl + """";"""
-        findPlayCountResult = self.executeUpdateStatement(cursor, updatePlaycountStatement)
-    except Exception as detail:
-      warning(str(detail))
-      debug("Error while updating record for : " + fullFilePath)
-    finally:
-      debug("Closing the cursor")
-      cursor.close()
-    return
-    
-  #######################################################################
-  #
   # Update the statistics table
   #
   # For the given (Amarok) database connection, increase the playcount by
@@ -403,19 +363,40 @@ class BumpAmarokStatistics:
     fullFilePath = fullFilePath.replace("\"", "\\\"")
     cursor = dbConnection.cursor()
     try:
-      findUrlIdStatement = """
-      SELECT id FROM urls WHERE 
-      urls.rpath = ".""" + fullFilePath + """";"""
-      self.executeSelectStatement(cursor, findUrlIdStatement)
-      debug("curor.rowcount : " + str(cursor.rowcount))
-      createAndAccessDate = str(int(time.time()))
       
+      AllPossiblePaths = AMAROK_MUSIC_HOME
+      #AllPossiblePaths.insert(0, "")
+      
+      foundEntry = "false"
+      pathToUse = fullFilePath
+      for pathPrefix in AllPossiblePaths:
+        debug("AMAROK_MUSIC_HOME = " + pathPrefix)
+        pathToUse = string.replace(fullFilePath, pathPrefix, "")
+        debug("Path to use: " + pathToUse);
+        
+        findUrlIdStatement = """
+        SELECT id FROM urls WHERE 
+        urls.rpath = ".""" + pathToUse + """";"""
+        self.executeSelectStatement(cursor, findUrlIdStatement)
+        debug("curor.rowcount : " + str(cursor.rowcount))
+
+        if cursor.rowcount != 1:
+          debug("No entry in url table for " + pathToUse)
+        else:
+          foundEntry = "true"
+          break
+
+      if foundEntry != "true":
+        warning("Stopping processing because no entry in url table for " + fullFilePath)
+        return
+
       if cursor.rowcount != 1:
-        warning("No entry in url table for " + fullFilePath)
+        warning("No entry in url table for " + pathToUse)
       else:
         debug("\n\rb) update/add current playcount")
         findUrlIdResult =  cursor.fetchall()
         urlId = str(findUrlIdResult[0][0])   
+        createAndAccessDate = str(int(time.time()))
         
         # find the appropriate entry in the statistics table and updatePlaycountStatement
         findStatisticsPlaycountStatement = """SELECT score,rating,playcount FROM statistics WHERE statistics.url = """ + urlId + """;"""
@@ -425,8 +406,9 @@ class BumpAmarokStatistics:
           debug("\n\rc - i) create playcount record")   
           debug("Inserted play count will be " + str(int(bump)))
           
-          newrating = random.randint(7, 10)
-          newscore = self.generateNewScore(bump, random.randint(50, 100), newrating * 10)
+          newrating = random.randint(0, 10)
+          newscore = self.generateNewScore(bump, random.randint(25, 75), newrating * 10)
+          
           
           insertPlaycountStatement = """INSERT INTO statistics (url,createdate,accessdate,score,rating,playcount) VALUES(""" + \
                 urlId + """, """ + createAndAccessDate + """, """ + createAndAccessDate + \
@@ -539,7 +521,9 @@ def debug(message):
 
 def bumpAmarokStats(connection, fileOrDirectory, playCountBump):
   bump = BumpAmarokStatistics()
-  bump.bumpAudioPlaycount(connection, fileOrDirectory, playCountBump)
+  debug("fileOrDirectory = " + fileOrDirectory)
+  amarokFilePath = fileOrDirectory
+  bump.bumpAudioPlaycount(connection, amarokFilePath, playCountBump)
 
 #######################################################################
 #
@@ -618,9 +602,9 @@ def main():
   try:
     opts, args = getopt.getopt(sys.argv[1:], "hdp", \
                  ["help", "debug", "itunes=", "pretend", "playcount-bump=", "unittest"])
-  except (getopt.GetoptError, err) as e:
+  except getopt.GetoptError, err:
     # print help information and exit:
-    warning(err)
+    warning(str(err))
     usage()
     sys.exit(2)
   #######################################################################
@@ -682,6 +666,8 @@ def main():
         for cmdInput in args:
           fileOrDirectory = string.lstrip(cmdInput, "\"")
           fileOrDirectory = string.rstrip(fileOrDirectory, "\"")
+          
+          # Need full path for deciding if this is a file or a directory
           if os.path.isdir(fileOrDirectory):
             os.path.walk(fileOrDirectory, find, bumpInfo)
           else:
