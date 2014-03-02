@@ -10,7 +10,7 @@ ITUNES_MUSIC_HOME_PREFIXES = ["file://localhost/Z:/Music", "file://localhost/C:/
 #AMAROK_MUSIC_HOME = ["/home/pub/audio", "/home/pub/sound"]
 AMAROK_MUSIC_HOME = ["/home"]
 
-VERSION  = "0.0.3"
+VERSION  = "0.0.4"
 DEBUG_FLAG = "false"
 ITUNES_FLAG = "false"
 PRETEND_FLAG = "false"
@@ -50,7 +50,7 @@ def find(bump, dirname, names):
 #
 def findHelper(dirname, item, fullFilePath, bump):
   foundAudioFiles = "false"
-  for audioType in [".mp3", ".flac", ".ogg", ".m4a"]:
+  for audioType in [".mp3", ".flac", ".ogg", ".m4a", ".mp4"]:
     fileExtension = os.path.splitext( fullFilePath )
     if fileExtension[1].lower() == audioType:
       debug("\n\rFound " + audioType + " in " + dirname + ": " + item)
@@ -566,8 +566,7 @@ def runUnitTests():
 # Prints warning messages to STDERR
 #
 def warning(message):
-  #print("WARNING : " + message, file=sys.stderr)
-  print >> sys.stderr, "WARNING : " + message
+  print("WARNING : " + message, file=sys.stderr)
 
 #######################################################################
 #
