@@ -5,4 +5,7 @@
 --# 3) From a bash prompt, execute: mysql -u root -p < create_database.sql
 
 CREATE DATABASE pyAmarokBump;
-GRANT ALL PRIVILEGES ON pyAmarokBump.* TO 'pyAmarmokBump' IDENTIFIED BY 'password'; FLUSH PRIVILEGES;
+USE pyAmarokBump;
+CREATE USER 'pyAm'@'localhost' IDENTIFIED BY 'password'; 
+GRANT ALL PRIVILEGES ON pyAmarokBump.* TO 'pyAm'@'localhost' ;
+FLUSH PRIVILEGES;
