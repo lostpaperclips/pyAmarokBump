@@ -1,0 +1,5 @@
+This directory contains some scripts to facilitate functional database testing.  There are scripts for creating a database for test purposes as well as a script to be run as part of the functional test suite to reload the database for each test run.
+
+1) create_database.sql : SQL script to create a well-known test database as well as a user with complete access to the database.  Run this script as a mysql user with appropriate user permissions to create a database and user.
+
+2) amarok_content.sql : SQL script that contains a mysqldump of an Amarok database.  For each functional testrun this functional test database will be overwritten with this data.
