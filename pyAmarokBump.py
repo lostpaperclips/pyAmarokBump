@@ -9,7 +9,7 @@ import unittest
 #AMAROK_MUSIC_HOME = ["/home/pub/audio", "/home/pub/sound"]
 AMAROK_MUSIC_HOME = ["/home"]
 
-VERSION  = "0.0.6"
+VERSION  = "0.0.7"
 BATCH_FLAG = "false"
 DEBUG_FLAG = "false"
 PRETEND_FLAG = "false"
