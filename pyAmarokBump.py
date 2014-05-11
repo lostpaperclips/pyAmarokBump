@@ -9,7 +9,7 @@ import unittest
 #AMAROK_MUSIC_HOME = ["/home/pub/audio", "/home/pub/sound"]
 AMAROK_MUSIC_HOME = ["/home"]
 
-VERSION  = "0.0.7"
+VERSION  = "0.0.8"
 BATCH_FLAG = "false"
 DEBUG_FLAG = "false"
 PRETEND_FLAG = "false"
@@ -91,9 +91,9 @@ class FunctionalTestFunctions(unittest.TestCase):
     self.sut = BumpAmarokStatistics()
     
     try:
-      dbName = "pyAmarokBump"
-      dbUserName = "pyAm"
-      dbPassword = "password"
+      readDefaultFile = os.path.abspath(os.getcwd())
+      readDefaultFile = os.path.join(readDefaultFile, "functional-tests")
+      readDefaultFile = os.path.join(readDefaultFile, "mysql.pyAmarokBump.functional.cnf")
       refreshDatabase = os.path.abspath(os.getcwd())
       refreshDatabase = os.path.join(refreshDatabase, "functional-tests")
       refreshDatabase = os.path.join(refreshDatabase, "amarok_contents.sql")
@@ -103,10 +103,11 @@ class FunctionalTestFunctions(unittest.TestCase):
       #        print statement
       #        cursor.execute(statement)
       from subprocess import Popen, PIPE
-      process = Popen('mysql %s -u%s -p%s' % (dbName, dbUserName, dbPassword),
+      process = Popen('mysql --defaults-file=%s' % (readDefaultFile),
                       stdout=PIPE, stdin=PIPE, shell=True)
       output = process.communicate('source ' + refreshDatabase)[0]
-      self.connection = connectToDatabase("localhost", dbName, dbUserName, dbPassword)
+      self.connection = MySQLdb.connect(read_default_file=readDefaultFile)
+
     except MySQLdb.Error, e:
         try:
             self.fail( "MySQL Error [%d]: %s" % (e.args[0], e.args[1]))
@@ -373,7 +374,7 @@ class BumpAmarokStatistics:
     if( playcount <= 0 ): # not supposed to be less, but what the hell.
       newscore = ( prevscore + percentage ) / 2
     else:
-      newscore = ( ( prevscore * playcount ) + percentage ) / ( playcount + 1 )    
+      newscore = ( ( prevscore * playcount ) + percentage ) / ( playcount + 1 )
     return newscore
   
   
@@ -473,16 +474,11 @@ class BumpAmarokStatistics:
 #
 # Establish a connection to the Amarok database
 #
-def connectToDatabase(machineName, databaseName, username, password):
-  debug("\n\rEntering connectToDatabase()")
-  debug("  hostname= " + machineName)
-  debug("  databaseName = " + databaseName)
-  debug("  username = " + username)
-  debug("  password = <Ssssh>")
-  return MySQLdb.connect (host = machineName,
-                           user = username,
-                           passwd = password,
-                           db = databaseName) 
+def connectToDatabase():
+  readDefaultFile = os.path.abspath(os.getcwd())
+  readDefaultFile = os.path.join(readDefaultFile, "mysql.pyAmarokBump.cnf")
+  debug("Reading Database information from " + readDefaultFile)
+  return MySQLdb.connect(read_default_file=readDefaultFile)
 
 #######################################################################
 #
