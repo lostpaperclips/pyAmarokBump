@@ -646,7 +646,7 @@ def main():
     warning("The batch file '"+pathToBatchFile+"' does not exist")
   else:
     debug("\n\rConnecting to database")
-    connection = connectToDatabase("localhost", "pyAmarokBump", "pyAm", "password")
+    connection = connectToDatabase()
     
     try:
       fileBumpMap = dict()
